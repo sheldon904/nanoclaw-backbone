@@ -22,6 +22,8 @@ ARG INSTALL_CJK_FONTS=false
 ARG CLAUDE_CODE_VERSION=2.1.128
 ARG AGENT_BROWSER_VERSION=latest
 ARG VERCEL_VERSION=52.2.1
+# OpenCode CLI — must match @opencode-ai/sdk pinned in agent-runner (Backbone: OpenRouter+Hermes runtime).
+ARG OPENCODE_VERSION=1.4.17
 ARG BUN_VERSION=1.3.12
 
 # ---- System dependencies -----------------------------------------------------
@@ -77,8 +79,10 @@ WORKDIR /app
 
 COPY agent-runner/package.json agent-runner/bun.lock ./
 
+# Backbone: de-frozen so the added @opencode-ai/sdk resolves at build without a host bun to update bun.lock.
+# TODO: re-freeze (bun install --frozen-lockfile) after regenerating the lock with bun on host (needs unzip + bun).
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
+    bun install
 
 # ---- pnpm + global Node CLIs -------------------------------------------------
 # Most stable first, most frequently bumped last. Bumping claude-code
@@ -109,6 +113,10 @@ RUN --mount=type=cache,target=/root/.cache/pnpm \
 
 RUN --mount=type=cache,target=/root/.cache/pnpm \
     pnpm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+
+# OpenCode CLI — enables the OpenCode agent provider (OpenRouter, etc.).
+RUN --mount=type=cache,target=/root/.cache/pnpm \
+    pnpm install -g "opencode-ai@${OPENCODE_VERSION}"
 
 # ---- ncl CLI wrapper ----------------------------------------------------------
 # Actual script lives in the mounted source at /app/src/cli/ncl.ts.
